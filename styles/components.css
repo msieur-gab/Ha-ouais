@@ -1,0 +1,500 @@
+/* styles/components.css - Component-specific styles */
+
+/* Car Grid */
+.car-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+.car-option {
+  background: white;
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.car-option:hover {
+  border-color: var(--color-secondary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.car-option:focus {
+  outline: none;
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.car-option h3 {
+  margin-bottom: var(--space-3);
+  color: var(--color-gray-900);
+  font-size: var(--font-size-xl);
+}
+
+.car-option p {
+  color: var(--color-gray-600);
+  margin-bottom: var(--space-4);
+}
+
+.car-option::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--color-secondary), var(--color-primary));
+  transform: scaleX(0);
+  transition: transform var(--transition-base);
+}
+
+.car-option:hover::before {
+  transform: scaleX(1);
+}
+
+/* Milestone Cards (host styles) */
+milestone-card {
+  display: block;
+  margin-bottom: var(--space-4);
+}
+
+milestone-card:last-child {
+  margin-bottom: 0;
+}
+
+/* Photo Timeline (host styles) */
+photo-timeline {
+  display: block;
+  width: 100%;
+}
+
+/* Language Selector (host styles) */
+language-selector {
+  display: inline-block;
+}
+
+/* Car Viewer (host styles) */
+car-viewer {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-base);
+}
+
+/* Enhanced button styles for component interactions */
+.btn-car-action {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-6);
+  font-weight: var(--font-weight-semibold);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  transition: all var(--transition-base);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-car-action:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-car-action:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-car-action .btn-icon {
+  font-size: var(--font-size-lg);
+}
+
+/* Achievement celebration animations */
+@keyframes celebration {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.1) rotate(5deg);
+  }
+  50% {
+    transform: scale(1.2) rotate(-5deg);
+  }
+  75% {
+    transform: scale(1.1) rotate(3deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.milestone-celebration {
+  animation: celebration 0.6s ease-in-out;
+}
+
+/* Floating achievement notification */
+.achievement-notification {
+  position: fixed;
+  top: var(--space-6);
+  right: var(--space-6);
+  background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-dark) 100%);
+  color: white;
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  z-index: var(--z-tooltip);
+  animation: slideInRight 0.5s ease-out, fadeOut 0.5s ease-in 4.5s forwards;
+  max-width: 300px;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+.achievement-notification .achievement-icon {
+  font-size: var(--font-size-2xl);
+  margin-right: var(--space-3);
+}
+
+.achievement-notification .achievement-title {
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--space-1);
+}
+
+.achievement-notification .achievement-description {
+  font-size: var(--font-size-sm);
+  opacity: 0.9;
+}
+
+/* Enhanced photo capture interface */
+.camera-container {
+  position: relative;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: var(--color-gray-900);
+  box-shadow: var(--shadow-lg);
+}
+
+.camera-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.camera-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.1) 0%,
+    transparent 20%,
+    transparent 80%,
+    rgba(0, 0, 0, 0.3) 100%
+  );
+  pointer-events: none;
+}
+
+.camera-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  border: 2px solid white;
+  border-radius: var(--radius-base);
+  pointer-events: none;
+  animation: pulse 2s infinite;
+}
+
+.camera-crosshair::before,
+.camera-crosshair::after {
+  content: '';
+  position: absolute;
+  background: white;
+}
+
+.camera-crosshair::before {
+  top: 50%;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.camera-crosshair::after {
+  left: 50%;
+  top: 20%;
+  bottom: 20%;
+  width: 2px;
+  transform: translateX(-50%);
+}
+
+/* Enhanced stats display */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-6) 0;
+}
+
+.stat-card {
+  background: white;
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  text-align: center;
+  border: 1px solid var(--color-gray-200);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-base);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--color-secondary), var(--color-primary));
+}
+
+.stat-value {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--space-2);
+  background: linear-gradient(135deg, var(--color-secondary), var(--color-primary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-600);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Loading states for components */
+.component-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  color: var(--color-gray-500);
+}
+
+.component-loading .loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-gray-200);
+  border-top: 3px solid var(--color-secondary);
+  border-radius: var(--radius-full);
+  animation: spin 1s linear infinite;
+  margin-right: var(--space-3);
+}
+
+/* Error states for components */
+.component-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  color: var(--color-danger);
+  background: var(--color-danger-light);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-danger);
+}
+
+.component-error .error-icon {
+  font-size: var(--font-size-xl);
+  margin-right: var(--space-3);
+}
+
+/* Enhanced form components */
+.form-group-enhanced {
+  position: relative;
+  margin-bottom: var(--space-6);
+}
+
+.form-input-enhanced {
+  width: 100%;
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-12);
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  font-family: inherit;
+  font-size: var(--font-size-base);
+  transition: all var(--transition-base);
+  background: white;
+}
+
+.form-input-enhanced:focus {
+  outline: none;
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.form-input-icon {
+  position: absolute;
+  left: var(--space-4);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-gray-400);
+  font-size: var(--font-size-lg);
+  pointer-events: none;
+}
+
+.form-input-enhanced:focus ~ .form-input-icon {
+  color: var(--color-secondary);
+}
+
+/* Interactive elements */
+.interactive-card {
+  background: white;
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-base);
+  transition: all var(--transition-base);
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+.interactive-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+  border-color: var(--color-secondary);
+}
+
+.interactive-card:active {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Success/Error message components */
+.message-success {
+  background: var(--color-success);
+  color: white;
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-lg);
+  margin: var(--space-4) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  animation: slideIn var(--transition-base) ease-out;
+}
+
+.message-error {
+  background: var(--color-danger);
+  color: white;
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-lg);
+  margin: var(--space-4) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  animation: slideIn var(--transition-base) ease-out;
+}
+
+.message-icon {
+  font-size: var(--font-size-lg);
+  flex-shrink: 0;
+}
+
+/* Progress indicators */
+.progress-ring {
+  transform: rotate(-90deg);
+}
+
+.progress-ring-circle {
+  transition: stroke-dashoffset 0.35s;
+  transform-origin: 50% 50%;
+}
+
+/* Accessibility improvements */
+.focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .btn {
+    border: 2px solid currentColor;
+  }
+  
+  .card-header {
+    border-bottom-width: 2px;
+  }
+  
+  .form-input,
+  .form-select {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print styles for components */
+@media print {
+  .btn,
+  .interactive-card,
+  .camera-container {
+    break-inside: avoid;
+  }
+  
+  .stat-card {
+    border: 1px solid var(--color-gray-400);
+  }
+  
+  .achievement-notification {
+    position: static;
+    margin: var(--space-4) 0;
+    break-inside: avoid;
+  }
+}
