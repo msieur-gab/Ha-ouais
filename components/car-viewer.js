@@ -1,10 +1,13 @@
-// components/car-viewer.js
+// components/car-viewer.js - Isolated version to prevent conflicts
 class CarViewer extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
     
-    // Three.js scene objects
+    // Create unique instance ID to prevent conflicts
+    this.instanceId = 'car-viewer-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    
+    // Three.js scene objects - all isolated per instance
     this.scene = null;
     this.camera = null;
     this.renderer = null;
@@ -13,7 +16,7 @@ class CarViewer extends HTMLElement {
     this.group = new THREE.Group();
     this.groundPlane = null;
     
-    // Audio system
+    // Audio system - isolated per instance
     this.audioListener = null;
     this.audioBuffers = new Map();
     this.defaultClickSoundBuffer = null;
@@ -34,9 +37,12 @@ class CarViewer extends HTMLElement {
     this.originalMeshPositions = new Map();
     this.originalEmissiveProperties = new Map();
     
-    // Animation frame ID
+    // Animation frame ID and state
     this.animationId = null;
+    this.isInitialized = false;
+    this.isDestroyed = false;
     
+    console.log(`CarViewer instance created: ${this.instanceId}`);
     this.init();
   }
   
@@ -51,6 +57,7 @@ class CarViewer extends HTMLElement {
           background: #f45436;
           border-radius: 0.5rem;
           overflow: hidden;
+          min-height: 300px;
         }
         
         canvas {
@@ -71,6 +78,7 @@ class CarViewer extends HTMLElement {
           font-weight: 500;
           text-align: center;
           pointer-events: none;
+          z-index: 10;
         }
         
         .error-message {
@@ -87,24 +95,45 @@ class CarViewer extends HTMLElement {
           padding: 1rem;
           border-radius: 0.5rem;
           border: 1px solid rgba(239, 68, 68, 0.3);
+          z-index: 10;
+          max-width: 90%;
+        }
+        
+        .debug-info {
+          position: absolute;
+          bottom: 10px;
+          left: 10px;
+          color: white;
+          font-size: 10px;
+          opacity: 0.7;
+          pointer-events: none;
+          z-index: 10;
         }
       </style>
       
-      <canvas id="car-canvas"></canvas>
-      <div class="loading-message" id="loading-message">Loading 3D car...</div>
-      <div class="error-message" id="error-message" style="display: none;"></div>
+      <canvas id="car-canvas-${this.instanceId}"></canvas>
+      <div class="loading-message" id="loading-message-${this.instanceId}">Loading 3D car...</div>
+      <div class="error-message" id="error-message-${this.instanceId}" style="display: none;"></div>
+      <div class="debug-info" id="debug-info-${this.instanceId}">${this.instanceId}</div>
     `;
     
-    this.canvas = this.shadowRoot.getElementById('car-canvas');
-    this.loadingMessage = this.shadowRoot.getElementById('loading-message');
-    this.errorMessage = this.shadowRoot.getElementById('error-message');
-    
-    this.setupThreeJS();
-    this.setupEventListeners();
+    this.canvas = this.shadowRoot.getElementById(`car-canvas-${this.instanceId}`);
+    this.loadingMessage = this.shadowRoot.getElementById(`loading-message-${this.instanceId}`);
+    this.errorMessage = this.shadowRoot.getElementById(`error-message-${this.instanceId}`);
+    this.debugInfo = this.shadowRoot.getElementById(`debug-info-${this.instanceId}`);
   }
   
-  setupThreeJS() {
+  async setupThreeJS() {
+    if (this.isDestroyed) return;
+    
     try {
+      console.log(`${this.instanceId}: Setting up Three.js scene...`);
+      
+      // Check WebGL support
+      if (!this.checkWebGLSupport()) {
+        throw new Error('WebGL not supported');
+      }
+      
       // Scene
       this.scene = new THREE.Scene();
       this.scene.background = new THREE.Color(0xf45436);
@@ -114,15 +143,33 @@ class CarViewer extends HTMLElement {
       this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
       this.camera.position.set(-60, 30, 90);
       
-      // Renderer
+      // Renderer with explicit settings for isolation
       this.renderer = new THREE.WebGLRenderer({ 
         canvas: this.canvas, 
         antialias: true,
-        alpha: true
+        alpha: true,
+        preserveDrawingBuffer: true,
+        powerPreference: "high-performance"
       });
+      
       this.renderer.setPixelRatio(window.devicePixelRatio);
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      
+      // Check for WebGL context loss
+      this.canvas.addEventListener('webglcontextlost', (e) => {
+        console.warn(`${this.instanceId}: WebGL context lost`);
+        e.preventDefault();
+        this.stopAnimation();
+      });
+      
+      this.canvas.addEventListener('webglcontextrestored', () => {
+        console.log(`${this.instanceId}: WebGL context restored`);
+        this.startAnimation();
+      });
+      
+      // Initial size
+      this.handleResize();
       
       // Lighting
       this.setupLighting();
@@ -136,18 +183,35 @@ class CarViewer extends HTMLElement {
       // Audio
       this.setupAudio();
       
-      // Start render loop
-      this.startAnimation();
+      // Event listeners
+      this.setupEventListeners();
       
       // Handle resize
-      this.resizeObserver = new ResizeObserver(() => this.handleResize());
+      this.resizeObserver = new ResizeObserver((entries) => {
+        if (!this.isDestroyed) {
+          this.handleResize();
+        }
+      });
       this.resizeObserver.observe(this);
       
-      this.loadingMessage.style.display = 'none';
+      this.isInitialized = true;
+      this.hideLoading();
+      
+      console.log(`${this.instanceId}: Three.js scene setup complete`);
       
     } catch (error) {
-      this.showError('Failed to initialize 3D viewer');
-      console.error('CarViewer initialization error:', error);
+      this.showError(`Failed to initialize 3D viewer: ${error.message}`);
+      console.error(`${this.instanceId}: Initialization error:`, error);
+    }
+  }
+  
+  checkWebGLSupport() {
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      return !!gl;
+    } catch (e) {
+      return false;
     }
   }
   
@@ -201,7 +265,7 @@ class CarViewer extends HTMLElement {
     this.controls.screenSpacePanning = false;
     this.controls.minDistance = 1;
     this.controls.maxDistance = 500;
-    this.controls.autoRotate = false;
+    this.controls.autoRotate = true;
     this.controls.autoRotateSpeed = 4.0;
     this.controls.target.set(0, 0, 0);
   }
@@ -212,12 +276,25 @@ class CarViewer extends HTMLElement {
   }
   
   setupEventListeners() {
-    this.canvas.addEventListener('click', (e) => this.handleInteraction(e));
-    this.canvas.addEventListener('touchstart', (e) => this.handleInteraction(e));
+    const clickHandler = (e) => {
+      if (!this.isDestroyed) {
+        this.handleInteraction(e);
+      }
+    };
+    
+    this.canvas.addEventListener('click', clickHandler);
+    this.canvas.addEventListener('touchstart', clickHandler);
+    
+    // Store handlers for cleanup
+    this.eventHandlers = { clickHandler };
   }
   
   startAnimation() {
+    if (this.isDestroyed || this.animationId) return;
+    
     const animate = () => {
+      if (this.isDestroyed) return;
+      
       this.animationId = requestAnimationFrame(animate);
       
       if (this.controls) {
@@ -226,12 +303,26 @@ class CarViewer extends HTMLElement {
       
       this.updateVibration();
       
-      if (this.renderer && this.scene && this.camera) {
-        this.renderer.render(this.scene, this.camera);
+      if (this.renderer && this.scene && this.camera && !this.isDestroyed) {
+        try {
+          this.renderer.render(this.scene, this.camera);
+        } catch (error) {
+          console.error(`${this.instanceId}: Render error:`, error);
+          this.stopAnimation();
+        }
       }
     };
     
     animate();
+    console.log(`${this.instanceId}: Animation loop started`);
+  }
+  
+  stopAnimation() {
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
+      console.log(`${this.instanceId}: Animation loop stopped`);
+    }
   }
   
   updateVibration() {
@@ -272,14 +363,12 @@ class CarViewer extends HTMLElement {
     this.loadedObjects.forEach((data, id) => {
       const partName = data.originalFileName.toLowerCase();
       
-      // Store original positions for vibrating parts
       if (this.currentVibratableParts.includes(partName)) {
         if (!this.originalMeshPositions.has(id)) {
           this.originalMeshPositions.set(id, data.mesh.position.clone());
         }
       }
       
-      // Handle light glow for light parts
       if (partName.includes('light')) {
         if (data.mesh.material && data.mesh.material.isMeshStandardMaterial) {
           if (!this.originalEmissiveProperties.has(id)) {
@@ -300,12 +389,10 @@ class CarViewer extends HTMLElement {
     this.vibrationActive = false;
     
     this.loadedObjects.forEach((data, id) => {
-      // Restore original positions
       if (this.originalMeshPositions.has(id)) {
         data.mesh.position.copy(this.originalMeshPositions.get(id));
       }
       
-      // Restore original emissive properties
       if (this.originalEmissiveProperties.has(id)) {
         const originalProps = this.originalEmissiveProperties.get(id);
         data.mesh.material.emissive.copy(originalProps.color);
@@ -319,6 +406,8 @@ class CarViewer extends HTMLElement {
   }
   
   handleInteraction(event) {
+    if (!this.isInitialized || this.isDestroyed) return;
+    
     event.preventDefault();
     
     let clientX, clientY;
@@ -341,7 +430,6 @@ class CarViewer extends HTMLElement {
       const intersectedObject = intersects[0].object;
       let clickedLoadedObject = null;
       
-      // Find the clicked object in our loaded objects map
       for (const [id, data] of this.loadedObjects.entries()) {
         if (data.mesh === intersectedObject || 
             (intersectedObject.parent && data.mesh === intersectedObject.parent) ||
@@ -354,7 +442,6 @@ class CarViewer extends HTMLElement {
       if (clickedLoadedObject) {
         this.playPartSound(clickedLoadedObject);
         
-        // Dispatch custom event
         this.dispatchEvent(new CustomEvent('part-clicked', {
           detail: {
             partName: clickedLoadedObject.originalFileName,
@@ -366,7 +453,6 @@ class CarViewer extends HTMLElement {
   }
   
   playPartSound(partData) {
-    // Stop any current sound and vibration
     if (this.activeInteractionSound && this.activeInteractionSound.isPlaying) {
       this.activeInteractionSound.stop();
     }
@@ -389,7 +475,16 @@ class CarViewer extends HTMLElement {
   }
   
   async loadCar(carConfig) {
+    if (this.isDestroyed) return;
+    
     try {
+      console.log(`${this.instanceId}: Loading car config:`, carConfig);
+      
+      if (!this.isInitialized) {
+        console.log(`${this.instanceId}: Initializing Three.js before loading car`);
+        await this.setupThreeJS();
+      }
+      
       this.clearAllParts();
       this.showLoading('Loading car...');
       
@@ -405,33 +500,44 @@ class CarViewer extends HTMLElement {
         try {
           this.defaultClickSoundBuffer = await this.loadAudioBuffer(carConfig.defaultClickSound);
         } catch (e) {
-          console.warn('Could not load default click sound:', e);
+          console.warn(`${this.instanceId}: Could not load default click sound:`, e);
         }
       }
       
       // Load all parts
+      console.log(`${this.instanceId}: Loading ${carConfig.parts.length} parts`);
       const partLoadPromises = carConfig.parts.map(partConfig => this.loadPart(partConfig));
       await Promise.all(partLoadPromises);
       
+      console.log(`${this.instanceId}: All parts loaded, updating camera and controls`);
       this.updateCameraAndControls();
       this.hideLoading();
+      
+      // Ensure animation is running
+      if (!this.animationId && !this.isDestroyed) {
+        this.startAnimation();
+      }
       
       // Dispatch loaded event
       this.dispatchEvent(new CustomEvent('car-loaded', {
         detail: { carConfig }
       }));
       
+      console.log(`${this.instanceId}: Car loading complete`);
+      
     } catch (error) {
-      this.showError('Failed to load car');
-      console.error('Car loading error:', error);
+      this.showError(`Failed to load car: ${error.message}`);
+      console.error(`${this.instanceId}: Car loading error:`, error);
     }
   }
   
   async loadPart(partConfig) {
+    if (this.isDestroyed) return;
+    
     try {
+      console.log(`${this.instanceId}: Loading part:`, partConfig.name);
       const geometry = await this.loadSTLFromUrl(partConfig.stlUrl);
       
-      // Create material
       const materialProperties = {
         roughness: 0.8,
         metalness: 0.1
@@ -468,12 +574,11 @@ class CarViewer extends HTMLElement {
         try {
           soundBuffer = await this.loadAudioBuffer(partConfig.soundUrl);
         } catch (e) {
-          console.warn(`Could not load sound for part ${partConfig.name}:`, e);
+          console.warn(`${this.instanceId}: Could not load sound for part ${partConfig.name}:`, e);
         }
       }
       
-      // Store part data
-      const partId = Date.now() + '-' + partConfig.name + '-' + Math.random().toString(36).substr(2, 9);
+      const partId = `${this.instanceId}-${Date.now()}-${partConfig.name}-${Math.random().toString(36).substr(2, 9)}`;
       const partData = {
         mesh: mesh,
         originalFileName: partConfig.name,
@@ -486,8 +591,10 @@ class CarViewer extends HTMLElement {
       this.loadedObjects.set(partId, partData);
       this.group.add(mesh);
       
+      console.log(`${this.instanceId}: Part loaded successfully:`, partConfig.name);
+      
     } catch (error) {
-      console.error(`Failed to load part ${partConfig.name}:`, error);
+      console.error(`${this.instanceId}: Failed to load part ${partConfig.name}:`, error);
       throw error;
     }
   }
@@ -496,14 +603,16 @@ class CarViewer extends HTMLElement {
     return new Promise((resolve, reject) => {
       const loader = new THREE.STLLoader();
       loader.load(url,
-        function(geometry) {
+        (geometry) => {
           geometry.computeBoundingBox();
           resolve(geometry);
         },
-        function(xhr) {
-          // Progress callback
+        (xhr) => {
+          const progress = xhr.loaded / xhr.total * 100;
+          console.log(`${this.instanceId}: Loading STL progress: ${progress.toFixed(1)}%`);
         },
-        function(error) {
+        (error) => {
+          console.error(`${this.instanceId}: STL loading error:`, error);
           reject(error);
         }
       );
@@ -530,13 +639,11 @@ class CarViewer extends HTMLElement {
   }
   
   clearAllParts() {
-    // Stop any active sound and vibration
     if (this.activeInteractionSound && this.activeInteractionSound.isPlaying) {
       this.activeInteractionSound.stop();
     }
     this.stopVibration();
     
-    // Remove all meshes and dispose resources
     this.group.children.forEach(child => {
       if (child.isMesh) {
         child.geometry.dispose();
@@ -545,6 +652,8 @@ class CarViewer extends HTMLElement {
     });
     this.group.clear();
     this.loadedObjects.clear();
+    
+    console.log(`${this.instanceId}: All parts cleared`);
   }
   
   updateCameraAndControls() {
@@ -560,7 +669,6 @@ class CarViewer extends HTMLElement {
     const center = new THREE.Vector3();
     box.getCenter(center);
     
-    // Position group so bottom touches ground plane
     const currentLowestY = box.min.y;
     const targetLowestY = this.groundPlane.position.y;
     const offsetY = targetLowestY - currentLowestY;
@@ -568,12 +676,10 @@ class CarViewer extends HTMLElement {
     this.group.position.x -= center.x;
     this.group.position.z -= center.z;
     
-    // Update controls target
     box.setFromObject(this.group);
     box.getCenter(center);
     this.controls.target.copy(center);
     
-    // Position camera
     const maxDim = Math.max(
       box.getSize(new THREE.Vector3()).x,
       box.getSize(new THREE.Vector3()).y,
@@ -590,6 +696,8 @@ class CarViewer extends HTMLElement {
     this.camera.lookAt(center);
     
     this.controls.update();
+    
+    console.log(`${this.instanceId}: Camera and controls updated`);
   }
   
   setAutoRotate(enabled) {
@@ -603,53 +711,108 @@ class CarViewer extends HTMLElement {
   }
   
   handleResize() {
-    if (!this.renderer || !this.camera) return;
+    if (!this.renderer || !this.camera || this.isDestroyed) return;
     
     const rect = this.getBoundingClientRect();
     const width = rect.width;
     const height = rect.height;
     
-    this.camera.aspect = width / height;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(width, height);
+    if (width > 0 && height > 0) {
+      this.camera.aspect = width / height;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(width, height);
+      console.log(`${this.instanceId}: Canvas resized to: ${width} x ${height}`);
+    }
   }
   
   showLoading(message = 'Loading...') {
-    this.loadingMessage.textContent = message;
-    this.loadingMessage.style.display = 'block';
-    this.errorMessage.style.display = 'none';
+    if (this.loadingMessage) {
+      this.loadingMessage.textContent = message;
+      this.loadingMessage.style.display = 'block';
+    }
+    if (this.errorMessage) {
+      this.errorMessage.style.display = 'none';
+    }
   }
   
   hideLoading() {
-    this.loadingMessage.style.display = 'none';
+    if (this.loadingMessage) {
+      this.loadingMessage.style.display = 'none';
+    }
   }
   
   showError(message) {
-    this.errorMessage.textContent = message;
-    this.errorMessage.style.display = 'block';
-    this.loadingMessage.style.display = 'none';
-  }
-  
-  // Lifecycle
-  connectedCallback() {
-    // Component added to DOM
-  }
-  
-  disconnectedCallback() {
-    // Cleanup when component is removed
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
+    if (this.errorMessage) {
+      this.errorMessage.textContent = message;
+      this.errorMessage.style.display = 'block';
     }
+    if (this.loadingMessage) {
+      this.loadingMessage.style.display = 'none';
+    }
+  }
+  
+  destroy() {
+    console.log(`${this.instanceId}: Destroying car viewer`);
+    this.isDestroyed = true;
+    
+    this.stopAnimation();
     
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
+    }
+    
+    if (this.eventHandlers) {
+      this.canvas.removeEventListener('click', this.eventHandlers.clickHandler);
+      this.canvas.removeEventListener('touchstart', this.eventHandlers.clickHandler);
     }
     
     this.clearAllParts();
     
     if (this.renderer) {
       this.renderer.dispose();
+      this.renderer.forceContextLoss();
+      this.renderer = null;
     }
+    
+    if (this.controls) {
+      this.controls.dispose();
+      this.controls = null;
+    }
+    
+    this.scene = null;
+    this.camera = null;
+  }
+  
+  // Lifecycle
+  connectedCallback() {
+    console.log(`${this.instanceId}: Connected to DOM`);
+    
+    if (!this.isInitialized && !this.isDestroyed) {
+      setTimeout(() => {
+        if (!this.isDestroyed) {
+          this.setupThreeJS().then(() => {
+            if (!this.isDestroyed) {
+              this.startAnimation();
+            }
+          }).catch(error => {
+            console.error(`${this.instanceId}: Failed to setup Three.js:`, error);
+          });
+        }
+      }, 100); // Small delay to ensure DOM is ready
+    } else if (this.isInitialized && !this.isDestroyed) {
+      this.startAnimation();
+      this.handleResize();
+    }
+  }
+  
+  disconnectedCallback() {
+    console.log(`${this.instanceId}: Disconnected from DOM`);
+    this.stopAnimation();
+  }
+  
+  // Cleanup when element is removed permanently
+  destructor() {
+    this.destroy();
   }
   
   // Attribute handling

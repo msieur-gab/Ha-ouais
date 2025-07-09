@@ -68,7 +68,7 @@ class VroomApp {
     
     // Cache commonly used elements
     this.loadingOverlay = document.querySelector('.loading-overlay');
-    this.carViewer = document.querySelector('car-viewer'); // Main viewer
+    this.carViewer = document.querySelector('.dashboard-section car-viewer'); // Main viewer
     this.photoTimeline = document.querySelector('photo-timeline');
     this.languageSelector = document.querySelector('language-selector');
     
@@ -95,7 +95,7 @@ class VroomApp {
     document.querySelector('.create-driver-onboard-btn').addEventListener('click', () => {
         this.showDriverCreation();
     });
-
+  
     // Photo capture
     document.querySelector('.take-photo-btn').addEventListener('click', () => this.startPhotoCapture());
     document.querySelector('.capture-btn').addEventListener('click', () => this.capturePhoto());
@@ -106,6 +106,12 @@ class VroomApp {
     document.querySelector('.update-home-btn').addEventListener('click', () => this.updateHomeLocation());
     document.querySelector('.export-data-btn').addEventListener('click', () => this.exportData());
     document.querySelector('.close-settings-btn').addEventListener('click', () => this.showDashboard());
+    
+    // NEW: Switch car button
+    const switchCarBtn = document.querySelector('.switch-car-btn');
+    if (switchCarBtn) {
+      switchCarBtn.addEventListener('click', () => this.showCarSelection());
+    }
     
     // Modal events
     document.querySelector('.close-nfc-modal').addEventListener('click', () => this.hideNFCModal());
@@ -128,7 +134,7 @@ class VroomApp {
         utilsService.vibrate([100, 50, 100]);
       });
     }
-
+  
     // Onboarding car viewer events (if needed, otherwise just load)
     if (this.onboardCarViewer) {
         this.onboardCarViewer.addEventListener('car-loaded', (e) => {
@@ -452,11 +458,26 @@ class VroomApp {
   }
   
   async loadCarInViewer(carConfig) {
-    if (this.carViewer && carConfig) {
+    console.log('loadCarInViewer called with:', carConfig);
+    
+    if (!this.carViewer) {
+      console.error('Main car viewer not found!');
+      return;
+    }
+    
+    if (!carConfig) {
+      console.error('No car config provided to loadCarInViewer');
+      return;
+    }
+    
+    try {
+      console.log('Loading car into main viewer...');
       await this.carViewer.loadCar(carConfig);
+      console.log('Car successfully loaded into main viewer');
+    } catch (error) {
+      console.error('Failed to load car into main viewer:', error);
     }
   }
-  
   // Photo capture
   async startPhotoCapture() {
     try {
@@ -544,28 +565,107 @@ class VroomApp {
   
   // Dashboard
   async loadDashboardData() {
-    if (!this.currentDriver) return;
+    console.log('Loading dashboard data...');
+    console.log('Current driver:', this.currentDriver);
+    console.log('Current car:', this.currentCar);
+    
+    if (!this.currentDriver) {
+      console.warn('No current driver found');
+      return;
+    }
     
     try {
       // Load statistics
       const photos = await databaseService.getPhotosForDriver(this.currentDriver.id);
       const totalDistance = await databaseService.getTotalDistanceForDriver(this.currentDriver.id);
       
-      // Update stats
-      document.querySelector('#total-distance').textContent = milestoneService.formatDistance(totalDistance);
-      document.querySelector('#photo-count').textContent = photos.length;
+      console.log(`Loaded ${photos.length} photos, total distance: ${totalDistance}km`);
       
-      // Update car name
+      // Update stats
+      const distanceElement = document.querySelector('#total-distance');
+      const photoCountElement = document.querySelector('#photo-count');
+      
+      if (distanceElement) {
+        distanceElement.textContent = milestoneService.formatDistance(totalDistance);
+      }
+      if (photoCountElement) {
+        photoCountElement.textContent = photos.length;
+      }
+      
+      // Update car name and load car viewer
       if (this.currentCar) {
+        console.log('Current car found:', this.currentCar);
+        
         // Display car name, consider multilingual config
         const carNameDisplay = typeof this.currentCar.name === 'object' ? 
             (this.currentCar.name[translationService.getLanguage()] || this.currentCar.name.en) : 
             this.currentCar.name;
-        document.querySelector('.car-name').textContent = carNameDisplay;
-
-        // Ensure main car viewer is loaded if dashboard is active and car is present
-        if (this.carViewer && this.currentCar.config && this.currentScreen === 'dashboard') {
+        
+        const carNameElement = document.querySelector('.car-name');
+        if (carNameElement) {
+          carNameElement.textContent = carNameDisplay;
+          console.log('Car name updated to:', carNameDisplay);
+        } else {
+          console.error('Car name element not found');
+        }
+  
+        // Check if main car viewer exists
+        if (!this.carViewer) {
+          console.error('Main car viewer not found in DOM');
+          // Try to find it again
+          this.carViewer = document.querySelector('car-viewer');
+          if (this.carViewer) {
+            console.log('Found car viewer after re-query');
+          } else {
+            console.error('Still no car viewer found');
+            return;
+          }
+        }
+        
+        // Ensure main car viewer is loaded
+        if (this.currentCar.config) {
+          console.log('Loading car config into main viewer:', this.currentCar.config);
+          
+          try {
             await this.carViewer.loadCar(this.currentCar.config);
+            console.log('Successfully loaded car into main viewer');
+          } catch (error) {
+            console.error('Failed to load car into main viewer:', error);
+            
+            // Try to provide more specific error information
+            if (error.message.includes('STL')) {
+              console.error('STL loading failed - check if model files exist and are accessible');
+            } else if (error.message.includes('WebGL')) {
+              console.error('WebGL error - check browser WebGL support');
+            }
+          }
+        } else {
+          console.error('Current car has no config:', this.currentCar);
+        }
+      } else {
+        console.log('No current car, trying to get selected car from database...');
+        
+        // No car selected, try to get one from database
+        const selectedCar = await databaseService.getSelectedCar();
+        if (selectedCar) {
+          console.log('Found selected car in database:', selectedCar);
+          this.currentCar = selectedCar;
+          
+          const carNameElement = document.querySelector('.car-name');
+          if (carNameElement) {
+            carNameElement.textContent = selectedCar.name;
+          }
+          
+          if (this.carViewer && selectedCar.config) {
+            try {
+              await this.carViewer.loadCar(selectedCar.config);
+              console.log('Successfully loaded selected car into main viewer');
+            } catch (error) {
+              console.error('Failed to load selected car into main viewer:', error);
+            }
+          }
+        } else {
+          console.warn('No selected car found in database');
         }
       }
       
@@ -575,11 +675,81 @@ class VroomApp {
       // Load photo timeline
       if (this.photoTimeline) {
         this.photoTimeline.setPhotos(photos);
+      } else {
+        console.warn('Photo timeline component not found');
       }
+      
+      console.log('Dashboard data loading complete');
       
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     }
+  }
+  
+  // Enhanced cacheElements method to verify all elements are found
+  cacheElements() {
+    console.log('Caching DOM elements...');
+    
+    // Cache all screens
+    document.querySelectorAll('[data-screen]').forEach(screen => {
+      const screenName = screen.dataset.screen;
+      this.screens.set(screenName, screen);
+      console.log(`Cached screen: ${screenName}`);
+    });
+    
+    // Cache commonly used elements
+    this.loadingOverlay = document.querySelector('.loading-overlay');
+    this.photoTimeline = document.querySelector('photo-timeline');
+    this.languageSelector = document.querySelector('language-selector');
+    
+    // Cache car viewers with verification
+    this.carViewer = document.querySelector('.dashboard-section car-viewer');
+    this.onboardCarViewer = document.getElementById('onboardCarViewer');
+    
+    console.log('Main car viewer found:', !!this.carViewer);
+    console.log('Onboard car viewer found:', !!this.onboardCarViewer);
+    
+    // Cache new onboarding screen elements
+    this.carOnboardScreen = this.screens.get('car-onboard');
+    
+    // Cache modals
+    this.nfcModal = document.querySelector('.nfc-modal');
+    
+    // Verify critical elements
+    const criticalElements = {
+      'Loading overlay': this.loadingOverlay,
+      'Main car viewer': this.carViewer,
+      'Photo timeline': this.photoTimeline,
+      'Car onboard screen': this.carOnboardScreen
+    };
+    
+    Object.entries(criticalElements).forEach(([name, element]) => {
+      if (!element) {
+        console.warn(`Critical element not found: ${name}`);
+      }
+    });
+    
+    console.log('Element caching complete');
+  }
+  
+  // Enhanced showDashboard method with car viewer verification
+  async showDashboard() {
+    console.log('Showing dashboard...');
+    
+    this.showScreen('dashboard');
+    
+    // Verify car viewer is available after screen change
+    if (!this.carViewer) {
+      console.log('Car viewer not cached, searching for it...');
+      this.carViewer = document.querySelector('.dashboard-section car-viewer');
+      if (this.carViewer) {
+        console.log('Found car viewer after screen change');
+      } else {
+        console.error('Car viewer still not found after screen change');
+      }
+    }
+    
+    await this.loadDashboardData();
   }
   
   async loadMilestones() {
@@ -753,38 +923,129 @@ class VroomApp {
   
   // Available cars management
   async loadAvailableCars() {
-    // This would load available car configurations
-    // For now, show example cars
-    const carGrid = document.querySelector('.car-grid');
-    carGrid.innerHTML = `
-      <div class="car-option" data-config="configs/conf-vroom.json">
-        <h3>Classic Vroom</h3>
-        <p>Vintage racing car with authentic sounds</p>
-      </div>
-      <div class="car-option" data-config="configs/conf-dodge.json">
-        <h3>Classic Dodge</h3>
-        <p>Powerful muscle car with V8 engine sounds</p>
-      </div>
-    `;
-    
-    // Add click handlers
-    carGrid.querySelectorAll('.car-option').forEach(option => {
-      option.addEventListener('click', async () => {
-        const configPath = option.dataset.config;
-        try {
-          const carConfig = await this.fetchCarConfig(configPath);
-          await this.loadCar(carConfig);
-          // After selecting manually, if no driver, go to driver creation
-          if (!this.currentDriver) {
-              this.showDriverCreation();
-          } else {
-              await this.showDashboard();
-          }
-        } catch (error) {
-          this.showError('Failed to load car: ' + error.message);
+    try {
+      console.log('Loading available cars...');
+      
+      // Get existing cars from database
+      const existingCars = await databaseService.getAllCars();
+      console.log('Existing cars:', existingCars);
+      
+      const carGrid = document.querySelector('.car-grid');
+      if (!carGrid) {
+        console.error('Car grid element not found');
+        return;
+      }
+      
+      // Create available car options (you can expand this list)
+      const availableCarConfigs = [
+        {
+          configPath: 'conf-vroom.json',
+          name: 'Classic Vroom',
+          description: 'Vintage racing car with authentic sounds'
+        },
+        {
+          configPath: 'conf-dodge.json', 
+          name: 'Classic Dodge',
+          description: 'Powerful muscle car with V8 engine sounds'
+        }
+      ];
+      
+      // Combine existing cars with available configs
+      const allCarOptions = [];
+      
+      // Add existing cars first
+      existingCars.forEach(car => {
+        allCarOptions.push({
+          type: 'existing',
+          car: car,
+          name: car.name,
+          description: 'Already in your garage'
+        });
+      });
+      
+      // Add available configs that aren't already added
+      availableCarConfigs.forEach(config => {
+        const alreadyExists = existingCars.some(car => 
+          car.config && car.config.carName && 
+          config.name.toLowerCase().includes(car.config.carName.toLowerCase())
+        );
+        
+        if (!alreadyExists) {
+          allCarOptions.push({
+            type: 'config',
+            configPath: config.configPath,
+            name: config.name,
+            description: config.description
+          });
         }
       });
-    });
+      
+      // Generate HTML for car options
+      const carOptionsHTML = allCarOptions.map(option => {
+        const isSelected = option.type === 'existing' && option.car.selected;
+        return `
+          <div class="car-option ${isSelected ? 'selected' : ''}" 
+               data-type="${option.type}" 
+               data-config="${option.configPath || ''}"
+               data-car-id="${option.car?.id || ''}">
+            <h3>${option.name}</h3>
+            <p>${option.description}</p>
+            ${isSelected ? '<div class="selected-badge">Currently Selected</div>' : ''}
+            ${option.type === 'existing' ? '<div class="existing-badge">In Garage</div>' : ''}
+          </div>
+        `;
+      }).join('');
+      
+      carGrid.innerHTML = carOptionsHTML;
+      
+      // Add click handlers
+      carGrid.querySelectorAll('.car-option').forEach(option => {
+        option.addEventListener('click', async () => {
+          try {
+            this.showLoading('Loading car...');
+            
+            const optionType = option.dataset.type;
+            
+            if (optionType === 'existing') {
+              // Select existing car
+              const carId = parseInt(option.dataset.carId);
+              const selectedCar = await databaseService.selectCar(carId);
+              this.currentCar = selectedCar;
+              
+              // Load car into viewer
+              if (selectedCar.config) {
+                await this.loadCarInViewer(selectedCar.config);
+              }
+            } else {
+              // Load new car from config
+              const configPath = option.dataset.config;
+              const carConfig = await this.fetchCarConfig(configPath);
+              await this.loadCar(carConfig);
+            }
+            
+            this.hideLoading();
+            
+            // Navigate based on driver status
+            if (!this.currentDriver) {
+              this.showDriverCreation();
+            } else {
+              await this.showDashboard();
+            }
+            
+          } catch (error) {
+            this.hideLoading();
+            this.showError('Failed to load car: ' + error.message);
+            console.error('Car selection error:', error);
+          }
+        });
+      });
+      
+      console.log('Available cars loaded');
+      
+    } catch (error) {
+      console.error('Failed to load available cars:', error);
+      this.showError('Failed to load available cars');
+    }
   }
 }
 
@@ -792,16 +1053,3 @@ class VroomApp {
 document.addEventListener('DOMContentLoaded', () => {
   window.vroomApp = new VroomApp();
 });
-
-// Register service worker
-// if ('serviceWorker' in navigator) {
-//   window.addEventListener('load', () => {
-//     navigator.serviceWorker.register('./sw.js')
-//       .then(registration => {
-//         console.log('SW registered: ', registration);
-//       })
-//       .catch(registrationError => {
-//         console.log('SW registration failed: ', registrationError);
-//       });
-//   });
-// }

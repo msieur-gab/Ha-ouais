@@ -498,3 +498,251 @@ car-viewer {
     break-inside: avoid;
   }
 }
+
+
+/* Add these styles to your styles/components.css file */
+
+/* Enhanced Car Selection Styles */
+.car-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+.car-option {
+  background: white;
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.car-option:hover {
+  border-color: var(--color-secondary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.car-option:focus {
+  outline: none;
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.car-option.selected {
+  border-color: var(--color-success);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.1) 100%);
+}
+
+.car-option h3 {
+  margin-bottom: var(--space-3);
+  color: var(--color-gray-900);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+}
+
+.car-option p {
+  color: var(--color-gray-600);
+  margin-bottom: var(--space-4);
+  line-height: var(--line-height-relaxed);
+}
+
+.car-option::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--color-secondary), var(--color-primary));
+  transform: scaleX(0);
+  transition: transform var(--transition-base);
+}
+
+.car-option:hover::before {
+  transform: scaleX(1);
+}
+
+.car-option.selected::before {
+  background: linear-gradient(90deg, var(--color-success), var(--color-success-dark));
+  transform: scaleX(1);
+}
+
+/* Badges */
+.selected-badge {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  background: var(--color-success);
+  color: white;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.existing-badge {
+  position: absolute;
+  bottom: var(--space-4);
+  right: var(--space-4);
+  background: var(--color-secondary);
+  color: white;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Loading states */
+.car-option.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.car-option.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--color-gray-300);
+  border-top: 2px solid var(--color-secondary);
+  border-radius: var(--radius-full);
+  animation: spin 1s linear infinite;
+}
+
+/* Switch car button enhancement */
+.switch-car-btn {
+  background: var(--color-secondary);
+  color: white;
+  border: none;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.switch-car-btn:hover {
+  background: var(--color-secondary-dark);
+  transform: translateY(-1px);
+}
+
+/* Empty state for car selection */
+.car-grid:empty::after {
+  content: 'No cars available. Try scanning an NFC tag or check your internet connection.';
+  display: block;
+  text-align: center;
+  color: var(--color-gray-500);
+  font-style: italic;
+  padding: var(--space-8);
+  grid-column: 1 / -1;
+}
+
+/* Responsive improvements */
+@media (max-width: 640px) {
+  .car-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+  
+  .car-option {
+    padding: var(--space-4);
+  }
+  
+  .selected-badge,
+  .existing-badge {
+    position: static;
+    display: inline-block;
+    margin-top: var(--space-2);
+  }
+}
+
+/* Animation for new cars being added */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-4));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.car-option.new {
+  animation: slideInUp var(--transition-base) ease-out;
+}
+
+/* Car viewer container improvements */
+.car-viewer-container {
+  height: 300px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-primary);
+  border: 2px solid var(--color-gray-200);
+  position: relative;
+}
+
+.car-viewer-container car-viewer {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Loading state for car viewer */
+.car-viewer-container.loading::after {
+  content: 'Loading 3D car...';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-weight: var(--font-weight-medium);
+  z-index: 10;
+}
+
+/* Success feedback */
+.car-selection-success {
+  background: var(--color-success);
+  color: white;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  margin: var(--space-4) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  animation: slideInUp var(--transition-base) ease-out;
+}
+
+.car-selection-success .success-icon {
+  font-size: var(--font-size-lg);
+}
+
+/* Error feedback */
+.car-selection-error {
+  background: var(--color-danger);
+  color: white;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  margin: var(--space-4) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  animation: slideInUp var(--transition-base) ease-out;
+}
+
+.car-selection-error .error-icon {
+  font-size: var(--font-size-lg);
+}
